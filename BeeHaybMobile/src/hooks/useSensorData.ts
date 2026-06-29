@@ -4,7 +4,7 @@ import { sensorService } from '../services/api';
 import { subscribeToHive, unsubscribeFromHive } from '../services/websocket';
 import { useSensorStore } from '../utils/store';
 
-export const useSensorReadings = (hiveId: number, refreshInterval: number = 5000) => {
+export const useSensorReadings = (hiveId: number, refreshInterval: number = 1000) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const readings = useSensorStore((state) => state.readings);
@@ -68,7 +68,7 @@ export const useLatestSensorReading = (hiveId: number) => {
 
     fetchLatestReading();
 
-    const interval = setInterval(fetchLatestReading, 5000);
+    const interval = setInterval(fetchLatestReading, 1000);
 
     return () => clearInterval(interval);
   }, [hiveId]);

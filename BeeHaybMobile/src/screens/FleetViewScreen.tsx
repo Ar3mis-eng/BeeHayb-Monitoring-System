@@ -3,6 +3,10 @@ import { View, ScrollView, StyleSheet, Text, TouchableOpacity, ActivityIndicator
 import { hiveService } from '../services/api';
 import { useHiveStore, useSensorStore } from '../utils/store';
 import { Hive } from '../types';
+import { formatMetricValue } from '../utils/helpers';
+
+const UNABLE_TO_DETECT_OTHER_DEVICES = 'Unable to detect other devices';
+const PLACEHOLDER_HIVE_NAMES = new Set(['Hive Bravo', 'Hive Charlie']);
 
 interface HiveCardProps {
   hive: Hive;
@@ -32,15 +36,15 @@ const HiveCard: React.FC<HiveCardProps> = ({
       <View style={styles.metricsContainer}>
         <View style={styles.metric}>
           <Text style={styles.metricLabel}>Temp</Text>
-          <Text style={styles.metricValue}>{temperature?.toFixed(1)}°C</Text>
+          <Text style={styles.metricValue}>{formatMetricValue(temperature, 1)}°C</Text>
         </View>
         <View style={styles.metric}>
           <Text style={styles.metricLabel}>Humidity</Text>
-          <Text style={styles.metricValue}>{humidity?.toFixed(1)}%</Text>
+          <Text style={styles.metricValue}>{formatMetricValue(humidity, 1)}%</Text>
         </View>
         <View style={styles.metric}>
           <Text style={styles.metricLabel}>Sound</Text>
-          <Text style={styles.metricValue}>{soundLevel?.toFixed(0)}dB</Text>
+          <Text style={styles.metricValue}>{formatMetricValue(soundLevel, 0)}dB</Text>
         </View>
       </View>
 
@@ -56,6 +60,7 @@ const FleetViewScreen: React.FC = () => {
   const setSelectedHiveId = useHiveStore((state) => state.setSelectedHiveId);
   const latestReadings = useSensorStore((state) => state.latestReadings);
   const [loading, setLoading] = React.useState(false);
+  const visibleHives = hives.filter((hive) => !PLACEHOLDER_HIVE_NAMES.has(hive.hive_name));
 
   useEffect(() => {
     const fetchHives = async () => {
@@ -96,11 +101,19 @@ const FleetViewScreen: React.FC = () => {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Fleet View</Text>
-        <Text style={styles.headerSubtitle}>{hives.length} Hives</Text>
+        <Text style={styles.headerSubtitle}>
+          {visibleHives.length} Hive{visibleHives.length === 1 ? '' : 's'}
+        </Text>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} style={styles.content}>
-        {hives.map((hive) => {
+        {visibleHives.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateText}>{UNABLE_TO_DETECT_OTHER_DEVICES}</Text>
+          </View>
+        ) : null}
+
+        {visibleHives.map((hive) => {
           const latestReading = latestReadings.get(hive.id);
           return (
             <HiveCard
@@ -108,9 +121,9 @@ const FleetViewScreen: React.FC = () => {
               hive={hive}
               isSelected={selectedHiveId === hive.id}
               onSelect={setSelectedHiveId}
-              temperature={latestReading?.temperature || 28}
-              humidity={latestReading?.humidity || 60}
-              soundLevel={latestReading?.sound_level || 55}
+              temperature={Number(latestReading?.temperature) || 28}
+              humidity={Number(latestReading?.humidity) || 60}
+              soundLevel={Number(latestReading?.sound_level) || 55}
             />
           );
         })}
@@ -147,6 +160,18 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 12,
+  },
+  emptyState: {
+    minHeight: 160,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#666',
+    textAlign: 'center',
   },
   hiveCard: {
     backgroundColor: '#FFFFFF',

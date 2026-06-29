@@ -9,7 +9,7 @@ const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 
 // If backend runs on your dev machine, use its LAN IP.
 const char* MQTT_HOST = "192.168.254.108";
-const uint16_t MQTT_PORT = 1883;
+const uint16_t MQTT_PORT = 1884;
 const char* MQTT_USER = "beehayb_user";
 const char* MQTT_PASSWORD = "beehayb_pass";
 
@@ -23,7 +23,7 @@ static const uint8_t SOUND_PIN = 34;  // ADC1 pin
 static const uint8_t DHT_TYPE = DHT22;
 
 // Telemetry timing
-static const uint32_t PUBLISH_INTERVAL_MS = 5000;
+static const uint32_t PUBLISH_INTERVAL_MS = 1000;
 static const uint8_t SOUND_SAMPLES = 64;
 
 // ---------- Globals ----------
@@ -32,6 +32,7 @@ WiFiClient wifiClient;
 PubSubClient mqttClient(wifiClient);
 
 uint32_t lastPublishMs = 0;
+uint32_t publishSequence = 0;
 
 // ---------- Helpers ----------
 String sensorTopic() {
@@ -42,7 +43,7 @@ String controlTopic() {
   return String("beehayb/device/") + ESP32_SERIAL + "/control";
 }
 
-float readSmoothedSoundDb() {
+float readSmoothedSoundDb(uint16_t& rawAvgOut, float& voltageOut) {
   uint32_t total = 0;
   for (uint8_t i = 0; i < SOUND_SAMPLES; i++) {
     total += analogRead(SOUND_PIN);
@@ -50,12 +51,12 @@ float readSmoothedSoundDb() {
   }
 
   // 12-bit ADC: 0-4095
-  float rawAvg = static_cast<float>(total) / SOUND_SAMPLES;
-  float voltage = (rawAvg / 4095.0f) * 3.3f;
+  rawAvgOut = static_cast<uint16_t>(total / SOUND_SAMPLES);
+  voltageOut = (static_cast<float>(rawAvgOut) / 4095.0f) * 3.3f;
 
   // Basic linear mapping for MAX9814 envelope output.
   // Calibrate this in your environment if needed.
-  float db = 40.0f + (voltage / 3.3f) * 50.0f;
+  float db = 40.0f + (voltageOut / 3.3f) * 50.0f;
   if (db < 40.0f) db = 40.0f;
   if (db > 90.0f) db = 90.0f;
   return db;
@@ -114,6 +115,9 @@ void connectMqtt() {
   Serial.print(':');
   Serial.println(MQTT_PORT);
 
+  // Increase packet buffer so payloads + topic name don't silently overflow
+  mqttClient.setBufferSize(512);
+
   while (!mqttClient.connected()) {
     if (mqttClient.connect(ESP32_SERIAL, MQTT_USER, MQTT_PASSWORD)) {
       Serial.println("[MQTT] Connected");
@@ -136,17 +140,31 @@ void publishTelemetry() {
     return;
   }
 
-  float soundDb = readSmoothedSoundDb();
+  uint16_t soundRawAvg = 0;
+  float soundVoltage = 0.0f;
+  float soundDb = readSmoothedSoundDb(soundRawAvg, soundVoltage);
+  float soundValue = soundDb;
 
+  Serial.print("Temperature: ");
+  Serial.println(temperature);
+
+  Serial.print("Humidity: ");
+  Serial.println(humidity);
+
+  Serial.print("Sound: ");
+  Serial.println(soundValue);
+
+  // Keep payload lean so it stays within the 512-byte MQTT buffer.
   StaticJsonDocument<256> doc;
   doc["esp32_serial"] = ESP32_SERIAL;
   doc["hive_id"] = HIVE_ID;
+  doc["publish_seq"] = ++publishSequence;
   doc["temperature"] = temperature;
   doc["humidity"] = humidity;
   doc["sound_level"] = soundDb;
   doc["timestamp"] = millis();
 
-  char payload[256];
+  char payload[300];
   size_t len = serializeJson(doc, payload, sizeof(payload));
 
   bool ok = mqttClient.publish(sensorTopic().c_str(), payload, len);

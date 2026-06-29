@@ -7,16 +7,19 @@ import { useSensorReadings } from '../hooks/useSensorData';
 import { useHiveStore } from '../utils/store';
 import { SensorReading } from '../types';
 
+const UNABLE_TO_DETECT_OTHER_DEVICES = 'Unable to detect other devices';
+
 const LiveMonitorScreen: React.FC = () => {
   const selectedHiveId = useHiveStore((state) => state.selectedHiveId);
-  const selectedHive = useHiveStore((state) => state.getSelectedHive());
-  const { latestReading, loading, error } = useSensorReadings(selectedHiveId || 1);
+  const hives = useHiveStore((state) => state.hives);
+  const selectedHive = hives.find((hive) => hive.id === selectedHiveId);
+  const hiveId = selectedHiveId ?? 1;
+  const { latestReading, loading, error } = useSensorReadings(hiveId, 1000);
 
   const [metrics, setMetrics] = useState({
     temperature: { value: 0, trend: 0, status: 'Healthy' as const },
     humidity: { value: 0, trend: 0, status: 'Healthy' as const },
     soundLevel: { value: 0, trend: 0, status: 'Healthy' as const },
-    hiveWeight: { value: 20.2, trend: -0.1, status: 'Healthy' as const },
   });
 
   useEffect(() => {
@@ -24,17 +27,17 @@ const LiveMonitorScreen: React.FC = () => {
       setMetrics((prev) => ({
         ...prev,
         temperature: {
-          value: latestReading.temperature || 0,
+          value: Number(latestReading.temperature) || 0,
           trend: 0.3,
           status: latestReading.bee_stress_status,
         },
         humidity: {
-          value: latestReading.humidity || 0,
+          value: Number(latestReading.humidity) || 0,
           trend: 0.5,
           status: 'Healthy',
         },
         soundLevel: {
-          value: latestReading.sound_level || 0,
+          value: Number(latestReading.sound_level) || 0,
           trend: 4,
           status: latestReading.bee_stress_status,
         },
@@ -46,7 +49,7 @@ const LiveMonitorScreen: React.FC = () => {
     return (
       <View style={styles.container}>
         <Header
-          hiveName={selectedHive?.hive_name || 'Hive Alpha'}
+          hiveName={selectedHive?.hive_name || UNABLE_TO_DETECT_OTHER_DEVICES}
           connectionStatus="Connected"
           sensorSource="MQTT"
         />
@@ -62,7 +65,7 @@ const LiveMonitorScreen: React.FC = () => {
     return (
       <View style={styles.container}>
         <Header
-          hiveName={selectedHive?.hive_name || 'Hive Alpha'}
+          hiveName={selectedHive?.hive_name || UNABLE_TO_DETECT_OTHER_DEVICES}
           connectionStatus="Disconnected"
           sensorSource="Mock"
         />
@@ -76,7 +79,7 @@ const LiveMonitorScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       <Header
-        hiveName={selectedHive?.hive_name || 'Hive Alpha'}
+        hiveName={selectedHive?.hive_name || UNABLE_TO_DETECT_OTHER_DEVICES}
         connectionStatus="Connected"
         sensorSource="MQTT"
       />
@@ -93,6 +96,7 @@ const LiveMonitorScreen: React.FC = () => {
           trend={metrics.temperature.trend}
           status={metrics.temperature.status}
           trendUnit="/hr"
+          decimals={2}
         />
 
         <MetricCard
@@ -102,6 +106,7 @@ const LiveMonitorScreen: React.FC = () => {
           trend={metrics.humidity.trend}
           status={metrics.humidity.status}
           trendUnit="/hr"
+          decimals={2}
         />
 
         <MetricCard
@@ -111,15 +116,7 @@ const LiveMonitorScreen: React.FC = () => {
           trend={metrics.soundLevel.trend}
           status={metrics.soundLevel.status}
           trendUnit="/hr"
-        />
-
-        <MetricCard
-          title="Hive Weight"
-          value={metrics.hiveWeight.value}
-          unit="kg"
-          trend={metrics.hiveWeight.trend}
-          status={metrics.hiveWeight.status}
-          trendUnit="/day"
+          decimals={1}
         />
 
         <View style={styles.spacer} />

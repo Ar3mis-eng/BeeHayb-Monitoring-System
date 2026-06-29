@@ -55,7 +55,6 @@ export interface HiveStatus {
   temperature: MetricValue;
   humidity: MetricValue;
   soundLevel: MetricValue;
-  hiveWeight: MetricValue;
   lastSync: Date;
   connectionStatus: 'Connected' | 'Disconnected';
   sensorSource: 'Mock' | 'WiFi' | 'MQTT' | 'Bluetooth';

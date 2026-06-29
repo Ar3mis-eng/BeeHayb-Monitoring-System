@@ -39,8 +39,13 @@ export const formatTime = (date: Date): string => {
   return new Date(date).toLocaleTimeString();
 };
 
-export const formatMetricValue = (value: number, decimals: number = 1): string => {
-  return value.toFixed(decimals);
+export const formatMetricValue = (value: number | string | null | undefined, decimals: number = 1): string => {
+  const numericValue = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(numericValue)) {
+    return '0.0';
+  }
+
+  return numericValue.toFixed(decimals);
 };
 
 export const generateMockSensorData = (hiveId: number, count: number = 24) => {

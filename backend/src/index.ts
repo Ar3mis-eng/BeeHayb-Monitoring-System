@@ -11,6 +11,7 @@ import { initMqtt } from './mqtt/client';
 import { initSocketIO, broadcastSensorReading } from './websocket/socketio';
 
 dotenv.config();
+// Reload on source change so MQTT config updates are picked up by ts-node-dev.
 
 const app = express();
 const server = http.createServer(app);

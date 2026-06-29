@@ -11,6 +11,7 @@ interface MetricCardProps {
   status: BeeStressLevel;
   icon?: string;
   trendUnit?: string;
+  decimals?: number;
 }
 
 const MetricCard: React.FC<MetricCardProps> = ({
@@ -21,6 +22,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
   status,
   icon,
   trendUnit = '/hr',
+  decimals = 1,
 }) => {
   const statusColor = getStressColor(status);
   const trendSign = trend >= 0 ? '+' : '';
@@ -34,7 +36,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
 
       <View style={styles.content}>
         <Text style={styles.value}>
-          {formatMetricValue(value, 1)}
+          {formatMetricValue(value, decimals)}
           <Text style={styles.unit}>{unit}</Text>
         </Text>
         <Text style={[styles.trend, { color: trend >= 0 ? '#D9A25F' : '#6BA36F' }]}>

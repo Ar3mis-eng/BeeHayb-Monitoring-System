@@ -1,0 +1,9 @@
+{
+  "name": "BeeHayb",
+  "displayName": "BeeHayb",
+  "version": "1.0.0",
+  "description": "Smart Beehive Monitoring System",
+  "react-native": {
+    "path": "./node_modules/react-native"
+  }
+}

@@ -1,0 +1,45 @@
+# Node modules
+node_modules/
+*.npm
+*.eslintcache
+
+# React Native
+build/
+.gradle/
+local.properties
+*.jks
+*.keystore
+.watchman*
+
+# Environment
+.env
+.env.local
+.env.development
+.env.production
+backend/.env
+infra/mosquitto/passwd
+infra/mosquitto/payload.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Production builds
+dist/
+out/
+
+# OS
+Thumbs.db
+
+# Database
+*.sql

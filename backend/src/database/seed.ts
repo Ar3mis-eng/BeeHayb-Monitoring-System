@@ -1,5 +1,4 @@
-import { SensorReadingModel } from './models/SensorReading';
-import { query } from './database/db';
+import { query } from '../database/db';
 
 const generateMockSensorData = async () => {
   console.log('Generating mock sensor data...');

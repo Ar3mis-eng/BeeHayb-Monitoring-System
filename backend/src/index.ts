@@ -58,6 +58,12 @@ const closeHttpServer = async (): Promise<void> => {
   await new Promise<void>((resolve, reject) => {
     server.close((error) => {
       if (error) {
+        const maybeNodeError = error as NodeJS.ErrnoException;
+        if (maybeNodeError.code === 'ERR_SERVER_NOT_RUNNING') {
+          resolve();
+          return;
+        }
+
         reject(error);
         return;
       }
@@ -77,9 +83,9 @@ const gracefulShutdown = async (signal: string): Promise<void> => {
   console.log(`${signal} received, shutting down gracefully`);
 
   try {
-    await closeHttpServer();
-    await closeSocketIO();
     await closeMqtt();
+    await closeSocketIO();
+    await closeHttpServer();
     await closeDatabase();
     process.exit(0);
   } catch (error) {

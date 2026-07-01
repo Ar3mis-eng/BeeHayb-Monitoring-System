@@ -75,6 +75,12 @@ export const closeSocketIO = async (): Promise<void> => {
   await new Promise<void>((resolve, reject) => {
     io!.close((err?: Error) => {
       if (err) {
+        const maybeNodeError = err as NodeJS.ErrnoException;
+        if (maybeNodeError.code === 'ERR_SERVER_NOT_RUNNING') {
+          resolve();
+          return;
+        }
+
         reject(err);
         return;
       }

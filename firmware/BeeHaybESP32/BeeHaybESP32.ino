@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <DHT.h>
 #include <ArduinoJson.h>
@@ -7,11 +8,11 @@
 const char* WIFI_SSID = "GFiber_f8df0";
 const char* WIFI_PASSWORD = "wUCPJ5wC";
 
-// If backend runs on your dev machine, use its LAN IP.
-const char* MQTT_HOST = "192.168.254.108";
-const uint16_t MQTT_PORT = 1884;
-const char* MQTT_USER = "beehayb_user";
-const char* MQTT_PASSWORD = "beehayb_pass";
+// HiveMQ Cloud endpoint (MQTT over TLS)
+const char* MQTT_HOST = "f9abe5a644f54cd58bdd982aa7e0ad18.s1.eu.hivemq.cloud";
+const uint16_t MQTT_PORT = 8883;
+const char* MQTT_USER = "beehayb_device";
+const char* MQTT_PASSWORD = "YOUR_HIVEMQ_DEVICE_PASSWORD";
 
 // Must match a device serial in backend DB (devices.esp32_serial).
 const char* ESP32_SERIAL = "ESP32-001-ABC123";
@@ -28,8 +29,8 @@ static const uint8_t SOUND_SAMPLES = 64;
 
 // ---------- Globals ----------
 DHT dht(DHT_PIN, DHT_TYPE);
-WiFiClient wifiClient;
-PubSubClient mqttClient(wifiClient);
+WiFiClientSecure secureWifiClient;
+PubSubClient mqttClient(secureWifiClient);
 
 uint32_t lastPublishMs = 0;
 uint32_t publishSequence = 0;
@@ -106,6 +107,9 @@ void connectMqtt() {
   if (mqttClient.connected()) {
     return;
   }
+
+  // TLS transport; replace with CA verification if you want strict cert pinning.
+  secureWifiClient.setInsecure();
 
   mqttClient.setServer(MQTT_HOST, MQTT_PORT);
   mqttClient.setCallback(mqttCallback);

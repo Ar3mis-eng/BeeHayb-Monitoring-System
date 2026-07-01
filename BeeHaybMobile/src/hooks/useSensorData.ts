@@ -5,33 +5,54 @@ import { subscribeToHive, unsubscribeFromHive } from '../services/websocket';
 import { useSensorStore } from '../utils/store';
 
 export const useSensorReadings = (hiveId: number, refreshInterval: number = 1000) => {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const readings = useSensorStore((state) => state.readings);
   const addReading = useSensorStore((state) => state.addReading);
   const latestReading = useSensorStore((state) => state.getLatestReading(hiveId));
 
   useEffect(() => {
-    const fetchReadings = async () => {
+    let mounted = true;
+
+    const fetchReadings = async (isInitialLoad: boolean) => {
       try {
-        setLoading(true);
+        if (isInitialLoad && mounted) {
+          setLoading(true);
+        }
+
         const data = await sensorService.getSensorReadingsByHive(hiveId, 100);
+        if (!mounted) {
+          return;
+        }
+
         useSensorStore.setState({ readings: data });
         if (data.length > 0) {
           useSensorStore.getState().setLatestReading(hiveId, data[0]);
+          setError(null);
+        } else {
+          setError('Failed to retrieve data');
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch readings');
+        if (mounted) {
+          setError(err instanceof Error ? err.message : 'Failed to retrieve data');
+        }
       } finally {
-        setLoading(false);
+        if (isInitialLoad && mounted) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchReadings();
+    fetchReadings(true);
 
-    const interval = setInterval(fetchReadings, refreshInterval);
+    const interval = setInterval(() => {
+      void fetchReadings(false);
+    }, refreshInterval);
 
-    return () => clearInterval(interval);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
   }, [hiveId, refreshInterval]);
 
   useEffect(() => {

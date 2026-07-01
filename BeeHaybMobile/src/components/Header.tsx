@@ -11,9 +11,14 @@ interface HeaderProps {
 const Header: React.FC<HeaderProps> = ({ hiveName, connectionStatus, sensorSource }) => {
   return (
     <View style={styles.header}>
-      <View>
-        <Text style={styles.appName}>Bee-Hayb</Text>
-        <Text style={styles.hiveName}>{hiveName}</Text>
+      <View style={styles.leftWrap}>
+        <View style={styles.logoBadge}>
+          <Text style={styles.logoText}>BH</Text>
+        </View>
+        <View>
+          <Text style={styles.appName}>Bee-Hayb</Text>
+          <Text style={styles.hiveName}>{hiveName}</Text>
+        </View>
       </View>
       <ConnectionBadge status={connectionStatus} sensorSource={sensorSource} />
     </View>
@@ -24,23 +29,44 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 12,
     paddingBottom: 16,
-    backgroundColor: '#F8F5F0',
+    backgroundColor: 'rgba(248, 245, 240, 0.74)',
     borderBottomWidth: 1,
     borderBottomColor: '#E8E3DB',
   },
-  appName: {
-    fontSize: 24,
-    fontWeight: '700',
+  leftWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  logoBadge: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: '#FFF8EE',
+    borderWidth: 1,
+    borderColor: '#D9A25F',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  logoText: {
     color: '#D9A25F',
+    fontWeight: '800',
+    fontSize: 14,
+    letterSpacing: 0.4,
+  },
+  appName: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#231F18',
   },
   hiveName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#2E2E2E',
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#5E5A52',
     marginTop: 2,
   },
 });

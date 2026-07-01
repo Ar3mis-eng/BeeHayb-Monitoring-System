@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { getStressColor, getStressIcon, formatMetricValue } from '../utils/helpers';
+import { Pressable, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { getStressColor, formatMetricValue } from '../utils/helpers';
 import { BeeStressLevel } from '../types';
 
 interface MetricCardProps {
@@ -12,6 +12,10 @@ interface MetricCardProps {
   icon?: string;
   trendUnit?: string;
   decimals?: number;
+  valueDisplay?: string;
+  detailHint?: string;
+  onPress?: () => void;
+  style?: StyleProp<ViewStyle>;
 }
 
 const MetricCard: React.FC<MetricCardProps> = ({
@@ -23,20 +27,39 @@ const MetricCard: React.FC<MetricCardProps> = ({
   icon,
   trendUnit = '/hr',
   decimals = 1,
+  valueDisplay,
+  detailHint = 'Tap for insights',
+  onPress,
+  style,
 }) => {
   const statusColor = getStressColor(status);
   const trendSign = trend >= 0 ? '+' : '';
-
   return (
-    <View style={[styles.card, { borderLeftColor: statusColor }]}>
+    <Pressable
+      disabled={!onPress}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.card,
+        { borderColor: statusColor, shadowColor: statusColor },
+        style,
+        onPress && pressed ? styles.cardPressed : null,
+      ]}
+    >
       <View style={styles.header}>
-        <Text style={styles.title}>{title}</Text>
-        {icon && <Text style={styles.icon}>{icon}</Text>}
+        <View style={styles.titleWrap}>
+          <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
+            {title}
+          </Text>
+          {icon ? <Text style={styles.icon}>{icon}</Text> : null}
+        </View>
+        <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
+          <Text style={styles.statusText}>{status}</Text>
+        </View>
       </View>
 
       <View style={styles.content}>
-        <Text style={styles.value}>
-          {formatMetricValue(value, decimals)}
+        <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit>
+          {valueDisplay ?? formatMetricValue(value, decimals)}
           <Text style={styles.unit}>{unit}</Text>
         </Text>
         <Text style={[styles.trend, { color: trend >= 0 ? '#D9A25F' : '#6BA36F' }]}>
@@ -46,73 +69,89 @@ const MetricCard: React.FC<MetricCardProps> = ({
       </View>
 
       <View style={styles.footer}>
-        <View style={[styles.statusBadge, { backgroundColor: statusColor }]}>
-          <Text style={styles.statusText}>{status}</Text>
-        </View>
+        <Text style={styles.detailHint}>{detailHint}</Text>
       </View>
-    </View>
+    </Pressable>
   );
 };
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginVertical: 8,
-    marginHorizontal: 12,
-    borderLeftWidth: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    backgroundColor: '#FFFDF8',
+    borderRadius: 24,
+    padding: 18,
+    minHeight: 190,
+    borderWidth: 3,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    elevation: 6,
+  },
+  cardPressed: {
+    transform: [{ scale: 0.985 }],
+    opacity: 0.94,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 18,
+  },
+  titleWrap: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    flex: 1,
+    paddingRight: 8,
   },
   title: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#2E2E2E',
-  },
-  icon: {
-    fontSize: 20,
-  },
-  content: {
-    marginBottom: 12,
-  },
-  value: {
-    fontSize: 32,
+    fontSize: 16,
     fontWeight: '700',
     color: '#2E2E2E',
+    flexShrink: 1,
+  },
+  icon: {
+    fontSize: 18,
+    marginLeft: 8,
+  },
+  content: {
+    flex: 1,
+  },
+  value: {
+    fontSize: 34,
+    fontWeight: '800',
+    color: '#1E1A14',
   },
   unit: {
-    fontSize: 16,
-    fontWeight: '400',
-    color: '#888',
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#716A60',
     marginLeft: 4,
   },
   trend: {
-    fontSize: 12,
-    marginTop: 4,
+    fontSize: 15,
+    marginTop: 12,
+    fontWeight: '700',
   },
   footer: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
   },
   statusBadge: {
     paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
   },
   statusText: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  detailHint: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#8B7C64',
   },
 });
 

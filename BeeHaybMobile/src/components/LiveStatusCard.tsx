@@ -10,81 +10,65 @@ interface LiveStatusCardProps {
 const LiveStatusCard: React.FC<LiveStatusCardProps> = ({ lastSyncTime, sensorSource }) => {
   return (
     <View style={styles.card}>
-      <Text style={styles.title}>Live Status</Text>
-
-      <View style={styles.row}>
-        <Text style={styles.label}>Last Sync:</Text>
-        <Text style={styles.value}>{formatDate(lastSyncTime)}</Text>
+      <View style={styles.leftWrap}>
+        <Text style={styles.leftText}>Live • Last sync: {formatDate(lastSyncTime)}</Text>
       </View>
-
-      <View style={styles.row}>
-        <Text style={styles.label}>Sensor Source:</Text>
-        <View style={[styles.sourceBadge, { backgroundColor: getSourceColor(sensorSource) }]}>
-          <Text style={styles.sourceText}>{sensorSource}</Text>
-        </View>
+      <View style={styles.rightWrap}>
+        <Text style={styles.rightText}>{getSourceLabel(sensorSource)}</Text>
       </View>
     </View>
   );
 };
 
-const getSourceColor = (source: string): string => {
+const getSourceLabel = (source: string): string => {
   switch (source) {
     case 'WiFi':
-      return '#4CAF50';
+      return 'WiFi Sensor Stream';
     case 'MQTT':
-      return '#2196F3';
+      return 'MQTT Sensor Stream';
     case 'Bluetooth':
-      return '#9C27B0';
+      return 'Bluetooth Sensor Stream';
     case 'Mock':
     default:
-      return '#FF9800';
+      return 'Mock Sensor Stream';
   }
 };
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: '#FBF9F3',
+    borderRadius: 20,
+    paddingVertical: 18,
+    paddingHorizontal: 18,
     marginHorizontal: 12,
-    marginVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2E2E2E',
-    marginBottom: 12,
-  },
-  row: {
+    marginTop: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E4DDCE',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginVertical: 8,
+    alignItems: 'flex-start',
+    columnGap: 12,
   },
-  label: {
+  leftWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  rightWrap: {
+    maxWidth: '42%',
+    alignItems: 'flex-end',
+  },
+  leftText: {
+    fontSize: 15,
+    color: '#2C271E',
+    fontWeight: '700',
+    flexShrink: 1,
+  },
+  rightText: {
     fontSize: 13,
-    fontWeight: '500',
-    color: '#666',
-  },
-  value: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: '#2E2E2E',
-  },
-  sourceBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  sourceText: {
-    fontSize: 12,
+    color: '#6F675A',
     fontWeight: '600',
-    color: '#FFFFFF',
+    textAlign: 'right',
   },
 });
 

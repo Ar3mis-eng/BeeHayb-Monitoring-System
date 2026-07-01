@@ -1,7 +1,12 @@
 import { io, Socket } from 'socket.io-client';
+import Config from 'react-native-config';
 import { SensorReading } from '../types';
 
-const WEBSOCKET_URL = process.env.REACT_APP_WS_URL || 'http://10.0.2.2:5001';
+const WEBSOCKET_URL = (Config.SOCKET_BASE_URL || '').trim().replace(/\/$/, '');
+
+if (!WEBSOCKET_URL) {
+  throw new Error('SOCKET_BASE_URL is not configured');
+}
 
 let socket: Socket | null = null;
 
@@ -16,15 +21,35 @@ export const initializeWebSocket = (): Socket => {
     });
 
     socket.on('connect', () => {
-      console.log('WebSocket connected');
+      console.log(`Socket connected: ${WEBSOCKET_URL}`);
     });
 
     socket.on('disconnect', () => {
-      console.log('WebSocket disconnected');
+      console.log('Socket disconnected');
+    });
+
+    socket.io.on('reconnect_attempt', (attempt) => {
+      console.log(`Socket reconnect attempt: ${attempt}`);
+    });
+
+    socket.io.on('reconnect', (attempt) => {
+      console.log(`Socket reconnected after attempts: ${attempt}`);
+    });
+
+    socket.io.on('reconnect_error', (error) => {
+      console.error('Socket reconnect error:', error);
+    });
+
+    socket.io.on('reconnect_failed', () => {
+      console.error('Socket reconnect failed');
     });
 
     socket.on('error', (error) => {
-      console.error('WebSocket error:', error);
+      console.error('Socket error:', error);
+    });
+
+    socket.on('connect_error', (error) => {
+      console.error('Socket connect error:', error.message);
     });
   }
 

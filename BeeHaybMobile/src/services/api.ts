@@ -1,10 +1,49 @@
 import axios, { AxiosInstance } from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Config from 'react-native-config';
 import { AuthResponse, Hive, Device, SensorReading, User } from '../types';
 
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://10.0.2.2:5000/api';
+const API_BASE_URL = (Config.API_BASE_URL || '').trim().replace(/\/$/, '');
 const LOCAL_USERS_KEY = 'beehaybLocalUsers';
 const CURRENT_USER_KEY = 'beehaybCurrentUser';
+let hasLoggedBackendConnected = false;
+
+const ensureApiBaseUrl = () => {
+  if (!API_BASE_URL) {
+    throw new Error('API_BASE_URL is not configured');
+  }
+};
+
+const attachApiDiagnostics = (client: AxiosInstance) => {
+  client.interceptors.response.use(
+    (response) => {
+      if (!hasLoggedBackendConnected) {
+        console.log(`Backend connected: ${API_BASE_URL}`);
+        hasLoggedBackendConnected = true;
+      }
+
+      return response;
+    },
+    (error) => {
+      if (error?.code === 'ERR_NETWORK' || !error?.response) {
+        console.error(`API unreachable: ${API_BASE_URL}`);
+      }
+
+      return Promise.reject(error);
+    }
+  );
+};
+
+ensureApiBaseUrl();
+
+const publicApi = axios.create({
+  baseURL: API_BASE_URL,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+attachApiDiagnostics(publicApi);
 
 type LocalUserRecord = {
   id: number;
@@ -32,26 +71,29 @@ const saveLocalSession = async (user: User) => {
 const createAxiosInstance = async (): Promise<AxiosInstance> => {
   const token = await AsyncStorage.getItem('authToken');
 
-  return axios.create({
+  const api = axios.create({
     baseURL: API_BASE_URL,
     headers: {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
     },
   });
+
+  attachApiDiagnostics(api);
+  return api;
 };
 
 // Auth Service
 export const authService = {
   async register(username: string, email: string, password: string): Promise<User> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/register`, {
+      const response = await publicApi.post('/auth/register', {
         username,
         email,
         password,
       });
       return response.data;
-    } catch (error) {
+    } catch {
       const users = await readLocalUsers();
 
       if (users[username]) {
@@ -77,7 +119,7 @@ export const authService = {
 
   async login(username: string, password: string): Promise<AuthResponse> {
     try {
-      const response = await axios.post(`${API_BASE_URL}/auth/login`, {
+      const response = await publicApi.post('/auth/login', {
         username,
         password,
       });

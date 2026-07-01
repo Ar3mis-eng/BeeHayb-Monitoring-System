@@ -7,36 +7,38 @@ import hiveRoutes from './routes/hives';
 import deviceRoutes from './routes/devices';
 import sensorRoutes from './routes/sensors';
 import authRoutes from './routes/auth';
-import { initMqtt } from './mqtt/client';
-import { initSocketIO, broadcastSensorReading } from './websocket/socketio';
+import { initMqtt, closeMqtt } from './mqtt/client';
+import { initSocketIO, broadcastSensorReading, closeSocketIO } from './websocket/socketio';
+import { closeDatabase, connectDatabase } from './database/db';
 
 dotenv.config();
-// Reload on source change so MQTT config updates are picked up by ts-node-dev.
 
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
+let isShuttingDown = false;
+
+const parseCorsOrigins = (): string[] | '*' => {
+  const corsOrigin = process.env.CORS_ORIGIN || '*';
+
+  if (corsOrigin.trim() === '*') {
+    return '*';
+  }
+
+  return corsOrigin
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+};
 
 // Middleware
-app.use(cors());
+const corsOrigins = parseCorsOrigins();
+app.use(
+  cors({
+    origin: corsOrigins === '*' ? true : corsOrigins,
+  })
+);
 app.use(express.json());
-
-// Initialize Socket.IO
-initSocketIO(server);
-
-// Initialize MQTT with callback for real-time updates
-initMqtt((payload) => {
-  console.log('Broadcasting sensor reading:', payload);
-  broadcastSensorReading(payload.hive_id, {
-    id: 0,
-    hive_id: payload.hive_id,
-    temperature: payload.temperature,
-    humidity: payload.humidity,
-    sound_level: payload.sound_level,
-    bee_stress_status: 'Healthy',
-    recorded_at: new Date(),
-  });
-});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -52,19 +54,69 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Start server
-server.listen(PORT, () => {
-  console.log(`BeeHayb backend running on port ${PORT}`);
-  console.log(`WebSocket server running on ${server.address()}`);
+const closeHttpServer = async (): Promise<void> => {
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      console.log('HTTP server closed');
+      resolve();
+    });
+  });
+};
+
+const gracefulShutdown = async (signal: string): Promise<void> => {
+  if (isShuttingDown) {
+    return;
+  }
+
+  isShuttingDown = true;
+  console.log(`${signal} received, shutting down gracefully`);
+
+  try {
+    await closeHttpServer();
+    await closeSocketIO();
+    await closeMqtt();
+    await closeDatabase();
+    process.exit(0);
+  } catch (error) {
+    console.error('Error during graceful shutdown:', error);
+    process.exit(1);
+  }
+};
+
+const startServer = async (): Promise<void> => {
+  try {
+    await connectDatabase();
+
+    initSocketIO(server);
+
+    await initMqtt((reading) => {
+      console.log('Broadcasting sensor reading:', reading);
+      broadcastSensorReading(reading.hive_id, reading);
+    });
+
+    server.listen(PORT, () => {
+      console.log(`BeeHayb backend running on port ${PORT}`);
+      console.log('Socket.IO server initialized');
+    });
+  } catch (error) {
+    console.error('Failed to start backend:', error);
+    process.exit(1);
+  }
+};
+
+process.on('SIGINT', () => {
+  void gracefulShutdown('SIGINT');
 });
 
-// Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    console.log('Server closed');
-    process.exit(0);
-  });
+  void gracefulShutdown('SIGTERM');
 });
+
+void startServer();
 
 export default app;

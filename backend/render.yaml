@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: beehayb-backend
+    runtime: node
+    rootDir: backend
+    plan: free
+    buildCommand: npm ci; npm run build
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: CORS_ORIGIN
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: DB_SSL
+        value: true
+      - key: DB_SSL_REJECT_UNAUTHORIZED
+        value: false
+      - key: MQTT_BROKER
+        sync: false
+      - key: MQTT_USER
+        sync: false
+      - key: MQTT_PASS
+        sync: false
+      - key: MQTT_CLIENT_ID
+        value: beehayb-backend
+      - key: MQTT_RECONNECT_PERIOD_MS
+        value: 5000
+      - key: MQTT_CONNECT_TIMEOUT_MS
+        value: 30000
+      - key: MQTT_KEEPALIVE_SECONDS
+        value: 60
+      - key: MQTT_CLEAN
+        value: true
+      - key: MQTT_REJECT_UNAUTHORIZED
+        value: true

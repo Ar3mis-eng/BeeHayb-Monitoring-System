@@ -2,27 +2,47 @@ import mqtt, { MqttClient } from 'mqtt';
 import { SensorReadingModel } from '../models/SensorReading';
 import { DeviceModel } from '../models/Device';
 import { calculateBeeStress } from '../utils/beeStress';
+import { SensorReading } from '../models/SensorReading';
 
 let mqttClient: MqttClient | null = null;
 
 export interface MqttPayload {
   esp32_serial: string;
   hive_id: number;
+  publish_seq?: number;
   temperature: number;
   humidity: number;
   sound_level: number;
   timestamp: number;
 }
 
-export const initMqtt = async (onMessageCallback?: (payload: MqttPayload) => void) => {
-  const brokerUrl = process.env.MQTT_BROKER || 'mqtt://localhost:1883';
-  const username = process.env.MQTT_USER || 'beehayb_user';
-  const password = process.env.MQTT_PASS || 'beehayb_pass';
+const getBoolean = (value: string | undefined, defaultValue: boolean): boolean => {
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  return value.toLowerCase() === 'true';
+};
+
+export const initMqtt = async (onMessageCallback?: (reading: SensorReading) => void) => {
+  const brokerUrl = process.env.MQTT_BROKER || process.env.MQTT_BROKER_URL || 'mqtt://localhost:1883';
+  const username = process.env.MQTT_USER;
+  const password = process.env.MQTT_PASS;
+  const reconnectPeriod = parseInt(process.env.MQTT_RECONNECT_PERIOD_MS || '5000', 10);
+  const connectTimeout = parseInt(process.env.MQTT_CONNECT_TIMEOUT_MS || '30000', 10);
+  const keepalive = parseInt(process.env.MQTT_KEEPALIVE_SECONDS || '60', 10);
+  const clean = getBoolean(process.env.MQTT_CLEAN, true);
+  const rejectUnauthorized = getBoolean(process.env.MQTT_REJECT_UNAUTHORIZED, true);
 
   mqttClient = mqtt.connect(brokerUrl, {
     username,
     password,
-    clientId: 'beehayb-backend',
+    clientId: process.env.MQTT_CLIENT_ID || 'beehayb-backend',
+    reconnectPeriod,
+    connectTimeout,
+    keepalive,
+    clean,
+    rejectUnauthorized,
   });
 
   mqttClient.on('connect', () => {
@@ -64,7 +84,7 @@ export const initMqtt = async (onMessageCallback?: (payload: MqttPayload) => voi
 
       // Call callback if provided
       if (onMessageCallback) {
-        onMessageCallback(payload);
+        onMessageCallback(reading);
       }
     } catch (error) {
       console.error('Error processing MQTT message:', error);
@@ -75,8 +95,20 @@ export const initMqtt = async (onMessageCallback?: (payload: MqttPayload) => voi
     console.error('MQTT error:', error);
   });
 
+  mqttClient.on('reconnect', () => {
+    console.log('MQTT reconnecting...');
+  });
+
+  mqttClient.on('offline', () => {
+    console.log('MQTT offline');
+  });
+
   mqttClient.on('disconnect', () => {
     console.log('MQTT disconnected');
+  });
+
+  mqttClient.on('close', () => {
+    console.log('MQTT connection closed');
   });
 };
 
@@ -92,8 +124,10 @@ export const getMqttClient = () => mqttClient;
 
 export const closeMqtt = async () => {
   if (mqttClient) {
-    return new Promise((resolve) => {
-      mqttClient!.end(false, resolve);
+    await new Promise<void>((resolve) => {
+      mqttClient!.end(false, () => resolve());
     });
+    mqttClient = null;
+    console.log('MQTT client closed');
   }
 };

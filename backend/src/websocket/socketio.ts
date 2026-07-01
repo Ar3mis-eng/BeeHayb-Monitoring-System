@@ -4,10 +4,25 @@ import { SensorReading } from '../models/SensorReading';
 
 let io: Server | null = null;
 
+const parseCorsOrigins = (): string[] | '*' => {
+  const corsOrigin = process.env.CORS_ORIGIN || '*';
+
+  if (corsOrigin.trim() === '*') {
+    return '*';
+  }
+
+  return corsOrigin
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter((origin) => origin.length > 0);
+};
+
 export const initSocketIO = (httpServer: HTTPServer) => {
+  const origins = parseCorsOrigins();
+
   io = new Server(httpServer, {
     cors: {
-      origin: '*',
+      origin: origins === '*' ? true : origins,
       methods: ['GET', 'POST'],
     },
   });
@@ -51,3 +66,23 @@ export const broadcastDeviceStatus = (deviceId: number, status: string) => {
 };
 
 export const getIO = () => io;
+
+export const closeSocketIO = async (): Promise<void> => {
+  if (!io) {
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    io!.close((err?: Error) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+
+      resolve();
+    });
+  });
+
+  io = null;
+  console.log('Socket.IO server closed');
+};

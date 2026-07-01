@@ -115,9 +115,6 @@ void connectMqtt() {
   Serial.print(':');
   Serial.println(MQTT_PORT);
 
-  // Increase packet buffer so payloads + topic name don't silently overflow
-  mqttClient.setBufferSize(512);
-
   while (!mqttClient.connected()) {
     if (mqttClient.connect(ESP32_SERIAL, MQTT_USER, MQTT_PASSWORD)) {
       Serial.println("[MQTT] Connected");
@@ -154,7 +151,6 @@ void publishTelemetry() {
   Serial.print("Sound: ");
   Serial.println(soundValue);
 
-  // Keep payload lean so it stays within the 512-byte MQTT buffer.
   StaticJsonDocument<256> doc;
   doc["esp32_serial"] = ESP32_SERIAL;
   doc["hive_id"] = HIVE_ID;
@@ -162,9 +158,13 @@ void publishTelemetry() {
   doc["temperature"] = temperature;
   doc["humidity"] = humidity;
   doc["sound_level"] = soundDb;
+  doc["sound_adc_raw"] = soundRawAvg;
+  doc["sound_voltage"] = soundVoltage;
+  doc["uptime_ms"] = millis();
+  doc["wifi_rssi"] = WiFi.RSSI();
   doc["timestamp"] = millis();
 
-  char payload[300];
+  char payload[256];
   size_t len = serializeJson(doc, payload, sizeof(payload));
 
   bool ok = mqttClient.publish(sensorTopic().c_str(), payload, len);

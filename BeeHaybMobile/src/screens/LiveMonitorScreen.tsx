@@ -19,6 +19,8 @@ import {
 } from '../utils/analytics';
 
 const FAILED_RETRIEVE_DATA = 'Failed to retrieve data';
+const FRESH_THRESHOLD_MS = 10 * 1000;
+const STALE_THRESHOLD_MS = 60 * 1000;
 
 const resolveHiveName = (
   selectedHiveId: number | null,
@@ -36,16 +38,56 @@ const resolveHiveName = (
   return FAILED_RETRIEVE_DATA;
 };
 
-const statusFromReading = (value: number): BeeStressLevel => {
-  if (value >= 76) {
-    return 'Critical';
+const resolveStressStatus = (status: unknown): BeeStressLevel => {
+  if (status === 'Healthy' || status === 'Warning' || status === 'Critical') {
+    return status;
   }
 
-  if (value >= 61) {
-    return 'Warning';
+  return 'Warning';
+};
+
+const resolveReadingTime = (recordedAt: unknown): Date | null => {
+  if (!recordedAt) {
+    return null;
   }
 
-  return 'Healthy';
+  const timestamp = new Date(recordedAt as string | number | Date);
+  if (Number.isNaN(timestamp.getTime())) {
+    return null;
+  }
+
+  return timestamp;
+};
+
+const resolveDeviceTelemetryStatus = (ageMs: number | null): 'Fresh' | 'Stale' | 'Offline' => {
+  if (ageMs === null || ageMs > STALE_THRESHOLD_MS) {
+    return 'Offline';
+  }
+
+  if (ageMs > FRESH_THRESHOLD_MS) {
+    return 'Stale';
+  }
+
+  return 'Fresh';
+};
+
+const formatLastUpdateAge = (ageMs: number | null): string => {
+  if (ageMs === null) {
+    return 'unknown';
+  }
+
+  const seconds = Math.floor(ageMs / 1000);
+  if (seconds < 60) {
+    return `${seconds}s ago`;
+  }
+
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ago`;
 };
 
 interface MetricState {
@@ -72,6 +114,7 @@ const LiveMonitorScreen: React.FC = () => {
   const hasData = Boolean(latestReading);
   const [selectedMetric, setSelectedMetric] = useState<MetricKey | null>(null);
   const [persistedBaseline, setPersistedBaseline] = useState<PersistedHiveBaseline | null>(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const [metrics, setMetrics] = useState<MetricsState>({
     temperature: { value: 0, trend: 0, status: 'Healthy' as const },
@@ -80,23 +123,35 @@ const LiveMonitorScreen: React.FC = () => {
   });
 
   useEffect(() => {
+    const timer = setInterval(() => {
+      setNowMs(Date.now());
+    }, 1000);
+
+    return () => {
+      clearInterval(timer);
+    };
+  }, []);
+
+  useEffect(() => {
     if (latestReading) {
+      const backendStatus = resolveStressStatus(latestReading.bee_stress_status);
+
       setMetrics((prev) => ({
         ...prev,
         temperature: {
           value: Number(latestReading.temperature) || 0,
           trend: 0.3,
-          status: latestReading.bee_stress_status,
+          status: backendStatus,
         },
         humidity: {
           value: Number(latestReading.humidity) || 0,
           trend: 0.5,
-          status: statusFromReading(Number(latestReading.sound_level) || 0),
+          status: backendStatus,
         },
         soundLevel: {
           value: Number(latestReading.sound_level) || 0,
           trend: 4,
-          status: latestReading.bee_stress_status,
+          status: backendStatus,
         },
       }));
     }
@@ -141,13 +196,19 @@ const LiveMonitorScreen: React.FC = () => {
 
   const activeInsight = selectedMetric ? metricInsights[selectedMetric] : null;
   const lastSyncTime = latestReading?.recorded_at ? new Date(latestReading.recorded_at) : new Date();
+  const backendConnectionStatus = error ? 'Disconnected' : 'Connected';
+  const backendStressStatus = resolveStressStatus(latestReading?.bee_stress_status);
+  const latestTelemetryTime = resolveReadingTime(latestReading?.recorded_at);
+  const readingAgeMs = latestTelemetryTime ? Math.max(0, nowMs - latestTelemetryTime.getTime()) : null;
+  const deviceTelemetryStatus = resolveDeviceTelemetryStatus(readingAgeMs);
+  const lastUpdateLabel = formatLastUpdateAge(readingAgeMs);
 
   if (loading && !latestReading) {
     return (
       <View style={styles.container}>
         <Header
           hiveName={hiveName}
-          connectionStatus="Connected"
+          connectionStatus={backendConnectionStatus}
           sensorSource="MQTT"
         />
         <View style={styles.loadingContainer}>
@@ -182,7 +243,7 @@ const LiveMonitorScreen: React.FC = () => {
     <View style={styles.container}>
       <Header
         hiveName={hiveName}
-        connectionStatus="Connected"
+          connectionStatus={backendConnectionStatus}
         sensorSource="MQTT"
       />
 
@@ -193,7 +254,13 @@ const LiveMonitorScreen: React.FC = () => {
           onSelectHive={setSelectedHiveId}
         />
 
-        <LiveStatusCard lastSyncTime={lastSyncTime} sensorSource="MQTT" />
+        <LiveStatusCard
+          lastSyncTime={lastSyncTime}
+          sensorSource="MQTT"
+          backendStatus={backendConnectionStatus}
+          deviceStatus={deviceTelemetryStatus}
+          lastUpdateLabel={lastUpdateLabel}
+        />
 
         <Text style={styles.sectionTitle}>Hive Metrics</Text>
 
@@ -242,7 +309,7 @@ const LiveMonitorScreen: React.FC = () => {
             value={stressIndex}
             unit="/100"
             trend={Math.max(0, metrics.soundLevel.trend / 2)}
-            status={latestReading?.bee_stress_status ?? 'Healthy'}
+            status={backendStressStatus}
             trendUnit=" index/hr"
             decimals={0}
             detailHint="Tap for colony interpretation"

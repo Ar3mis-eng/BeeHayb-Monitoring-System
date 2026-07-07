@@ -5,13 +5,24 @@ import { formatDate } from '../utils/helpers';
 interface LiveStatusCardProps {
   lastSyncTime: Date;
   sensorSource: 'Mock' | 'WiFi' | 'MQTT' | 'Bluetooth';
+  backendStatus?: 'Connected' | 'Disconnected';
+  deviceStatus?: 'Fresh' | 'Stale' | 'Offline';
+  lastUpdateLabel?: string;
 }
 
-const LiveStatusCard: React.FC<LiveStatusCardProps> = ({ lastSyncTime, sensorSource }) => {
+const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
+  lastSyncTime,
+  sensorSource,
+  backendStatus = 'Connected',
+  deviceStatus = 'Fresh',
+  lastUpdateLabel,
+}) => {
   return (
     <View style={styles.card}>
       <View style={styles.leftWrap}>
         <Text style={styles.leftText}>Live • Last sync: {formatDate(lastSyncTime)}</Text>
+        <Text style={styles.detailText}>Backend: {backendStatus}</Text>
+        <Text style={styles.detailText}>Device: {deviceStatus} • Last update: {lastUpdateLabel || formatDate(lastSyncTime)}</Text>
       </View>
       <View style={styles.rightWrap}>
         <Text style={styles.rightText}>{getSourceLabel(sensorSource)}</Text>
@@ -63,6 +74,12 @@ const styles = StyleSheet.create({
     color: '#2C271E',
     fontWeight: '700',
     flexShrink: 1,
+  },
+  detailText: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#6F675A',
+    fontWeight: '600',
   },
   rightText: {
     fontSize: 13,

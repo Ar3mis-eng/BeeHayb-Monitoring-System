@@ -12,7 +12,7 @@ const char* WIFI_PASSWORD = "wUCPJ5wC";
 const char* MQTT_HOST = "f9abe5a644f54cd58bdd982aa7e0ad18.s1.eu.hivemq.cloud";
 const uint16_t MQTT_PORT = 8883;
 const char* MQTT_USER = "beehayb_device";
-const char* MQTT_PASSWORD = "YOUR_HIVEMQ_DEVICE_PASSWORD";
+const char* MQTT_PASSWORD = "P@ssword2026";
 
 // Must match a device serial in backend DB (devices.esp32_serial).
 const char* ESP32_SERIAL = "ESP32-001-ABC123";

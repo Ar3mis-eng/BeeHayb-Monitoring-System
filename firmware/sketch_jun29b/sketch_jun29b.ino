@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <DHT.h>
 #include <ArduinoJson.h>
@@ -7,11 +8,11 @@
 const char* WIFI_SSID = "GFiber_f8df0";
 const char* WIFI_PASSWORD = "wUCPJ5wC";
 
-// If backend runs on your dev machine, use its LAN IP.
-const char* MQTT_HOST = "192.168.254.108";
-const uint16_t MQTT_PORT = 1884;
-const char* MQTT_USER = "beehayb_user";
-const char* MQTT_PASSWORD = "beehayb_pass";
+// HiveMQ Cloud broker for remote deployments.
+const char* MQTT_HOST = "f9abe5a644f54cd58bdd982aa7e0ad18.s1.eu.hivemq.cloud";
+const uint16_t MQTT_PORT = 8883;
+const char* MQTT_USER = "beehayb_device";
+const char* MQTT_PASSWORD = "P@ssword2026";
 
 // Must match a device serial in backend DB (devices.esp32_serial).
 const char* ESP32_SERIAL = "ESP32-001-ABC123";
@@ -25,14 +26,20 @@ static const uint8_t DHT_TYPE = DHT22;
 // Telemetry timing
 static const uint32_t PUBLISH_INTERVAL_MS = 1000;
 static const uint8_t SOUND_SAMPLES = 64;
+static const uint32_t WIFI_CONNECT_TIMEOUT_MS = 15000;
+static const uint32_t WIFI_RETRY_INTERVAL_MS = 10000;
+static const uint32_t MQTT_RETRY_INTERVAL_MS = 15000;
+static const uint16_t MQTT_PACKET_BUFFER_SIZE = 512;
 
 // ---------- Globals ----------
 DHT dht(DHT_PIN, DHT_TYPE);
-WiFiClient wifiClient;
+WiFiClientSecure wifiClient;
 PubSubClient mqttClient(wifiClient);
 
 uint32_t lastPublishMs = 0;
 uint32_t publishSequence = 0;
+uint32_t lastWiFiAttemptMs = 0;
+uint32_t lastMqttAttemptMs = 0;
 
 // ---------- Helpers ----------
 String sensorTopic() {
@@ -62,22 +69,23 @@ float readSmoothedSoundDb(uint16_t& rawAvgOut, float& voltageOut) {
   return db;
 }
 
-void connectWiFi() {
+bool connectWiFi() {
   if (WiFi.status() == WL_CONNECTED) {
-    return;
+    return true;
   }
 
   Serial.print("[WiFi] Connecting to ");
   Serial.println(WIFI_SSID);
 
   WiFi.mode(WIFI_STA);
+  WiFi.setAutoReconnect(true);
+  WiFi.persistent(false);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
-  uint8_t retries = 0;
-  while (WiFi.status() != WL_CONNECTED && retries < 60) {
+  uint32_t startMs = millis();
+  while (WiFi.status() != WL_CONNECTED && (millis() - startMs) < WIFI_CONNECT_TIMEOUT_MS) {
     delay(500);
     Serial.print('.');
-    retries++;
   }
 
   if (WiFi.status() == WL_CONNECTED) {
@@ -85,10 +93,26 @@ void connectWiFi() {
     Serial.println("[WiFi] Connected");
     Serial.print("[WiFi] IP: ");
     Serial.println(WiFi.localIP());
-  } else {
-    Serial.println();
-    Serial.println("[WiFi] Connection failed");
+    return true;
   }
+
+  Serial.println();
+  Serial.println("[WiFi] Connection failed");
+  return false;
+}
+
+bool ensureWiFi() {
+  if (WiFi.status() == WL_CONNECTED) {
+    return true;
+  }
+
+  uint32_t now = millis();
+  if (now - lastWiFiAttemptMs < WIFI_RETRY_INTERVAL_MS) {
+    return false;
+  }
+
+  lastWiFiAttemptMs = now;
+  return connectWiFi();
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
@@ -102,9 +126,14 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   Serial.println();
 }
 
-void connectMqtt() {
+bool connectMqtt() {
+  if (!ensureWiFi()) {
+    Serial.println("[MQTT] Skipping connect because Wi-Fi is not ready");
+    return false;
+  }
+
   if (mqttClient.connected()) {
-    return;
+    return true;
   }
 
   mqttClient.setServer(MQTT_HOST, MQTT_PORT);
@@ -115,20 +144,38 @@ void connectMqtt() {
   Serial.print(':');
   Serial.println(MQTT_PORT);
 
-  while (!mqttClient.connected()) {
-    if (mqttClient.connect(ESP32_SERIAL, MQTT_USER, MQTT_PASSWORD)) {
-      Serial.println("[MQTT] Connected");
-      mqttClient.subscribe(controlTopic().c_str());
-    } else {
-      Serial.print("[MQTT] Failed rc=");
-      Serial.print(mqttClient.state());
-      Serial.println(" retry in 5s");
-      delay(5000);
-    }
+  if (mqttClient.connect(ESP32_SERIAL, MQTT_USER, MQTT_PASSWORD)) {
+    Serial.println("[MQTT] Connected");
+    mqttClient.subscribe(controlTopic().c_str());
+    return true;
   }
+
+  Serial.print("[MQTT] Failed rc=");
+  Serial.print(mqttClient.state());
+  Serial.println(" retry later");
+  return false;
+}
+
+bool ensureMqtt() {
+  if (mqttClient.connected()) {
+    return true;
+  }
+
+  uint32_t now = millis();
+  if (now - lastMqttAttemptMs < MQTT_RETRY_INTERVAL_MS) {
+    return false;
+  }
+
+  lastMqttAttemptMs = now;
+  return connectMqtt();
 }
 
 void publishTelemetry() {
+  if (!ensureWiFi() || !ensureMqtt()) {
+    Serial.println("[PUB] Skipping telemetry until Wi-Fi and MQTT are connected");
+    return;
+  }
+
   float temperature = dht.readTemperature();
   float humidity = dht.readHumidity();
 
@@ -140,7 +187,6 @@ void publishTelemetry() {
   uint16_t soundRawAvg = 0;
   float soundVoltage = 0.0f;
   float soundDb = readSmoothedSoundDb(soundRawAvg, soundVoltage);
-  float soundValue = soundDb;
 
   Serial.print("Temperature: ");
   Serial.println(temperature);
@@ -149,7 +195,7 @@ void publishTelemetry() {
   Serial.println(humidity);
 
   Serial.print("Sound: ");
-  Serial.println(soundValue);
+  Serial.println(soundDb);
 
   StaticJsonDocument<256> doc;
   doc["esp32_serial"] = ESP32_SERIAL;
@@ -166,13 +212,33 @@ void publishTelemetry() {
 
   char payload[256];
   size_t len = serializeJson(doc, payload, sizeof(payload));
+  const String topic = sensorTopic();
 
-  bool ok = mqttClient.publish(sensorTopic().c_str(), payload, len);
+  if (len >= sizeof(payload)) {
+    Serial.println("[PUB] Warning: payload may be truncated by buffer size");
+  }
+
+  // PubSubClient limits total packet size (topic + header + payload).
+  const size_t estimatedPacketSize = topic.length() + len + 10;
+
+  bool ok = mqttClient.publish(topic.c_str(), payload, len);
   if (ok) {
     Serial.print("[PUB] ");
     Serial.println(payload);
   } else {
     Serial.println("[PUB] Failed to publish telemetry");
+    Serial.print("[PUB] mqttConnected=");
+    Serial.println(mqttClient.connected() ? "true" : "false");
+    Serial.print("[PUB] mqttState=");
+    Serial.println(mqttClient.state());
+    Serial.print("[PUB] payloadBytes=");
+    Serial.println(len);
+    Serial.print("[PUB] topicBytes=");
+    Serial.println(topic.length());
+    Serial.print("[PUB] estimatedPacketBytes=");
+    Serial.println(estimatedPacketSize);
+    Serial.print("[PUB] mqttBufferBytes=");
+    Serial.println(MQTT_PACKET_BUFFER_SIZE);
   }
 }
 
@@ -187,18 +253,18 @@ void setup() {
   analogReadResolution(12);
   analogSetPinAttenuation(SOUND_PIN, ADC_11db);
 
+  wifiClient.setInsecure();
+  if (!mqttClient.setBufferSize(MQTT_PACKET_BUFFER_SIZE)) {
+    Serial.println("[MQTT] Failed to set packet buffer size");
+  }
+
   connectWiFi();
   connectMqtt();
 }
 
 void loop() {
-  if (WiFi.status() != WL_CONNECTED) {
-    connectWiFi();
-  }
-
-  if (!mqttClient.connected()) {
-    connectMqtt();
-  }
+  ensureWiFi();
+  ensureMqtt();
 
   mqttClient.loop();
 

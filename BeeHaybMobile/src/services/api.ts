@@ -3,16 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Config from 'react-native-config';
 import { AuthResponse, Hive, Device, SensorReading, User } from '../types';
 
-const API_BASE_URL = (Config.API_BASE_URL || '').trim().replace(/\/$/, '');
+const API_BASE_URL = (Config.API_BASE_URL || '').trim().replace(/\/$/, '') || 'http://localhost:5000/api';
 const LOCAL_USERS_KEY = 'beehaybLocalUsers';
 const CURRENT_USER_KEY = 'beehaybCurrentUser';
 let hasLoggedBackendConnected = false;
-
-const ensureApiBaseUrl = () => {
-  if (!API_BASE_URL) {
-    throw new Error('API_BASE_URL is not configured');
-  }
-};
 
 const attachApiDiagnostics = (client: AxiosInstance) => {
   client.interceptors.response.use(
@@ -33,8 +27,6 @@ const attachApiDiagnostics = (client: AxiosInstance) => {
     }
   );
 };
-
-ensureApiBaseUrl();
 
 const publicApi = axios.create({
   baseURL: API_BASE_URL,

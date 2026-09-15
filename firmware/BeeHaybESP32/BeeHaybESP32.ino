@@ -136,6 +136,15 @@ void connectMqtt() {
 }
 
 void publishTelemetry() {
+  if (!mqttClient.connected()) {
+    Serial.println("[PUB] MQTT disconnected, reconnecting before publish");
+    connectMqtt();
+    if (!mqttClient.connected()) {
+      Serial.println("[PUB] Skipping telemetry because MQTT is unavailable");
+      return;
+    }
+  }
+
   float temperature = dht.readTemperature();
   float humidity = dht.readHumidity();
 
@@ -177,6 +186,15 @@ void publishTelemetry() {
     Serial.println(payload);
   } else {
     Serial.println("[PUB] Failed to publish telemetry");
+    Serial.print("[PUB] mqttConnected=");
+    Serial.println(mqttClient.connected() ? "true" : "false");
+    Serial.print("[PUB] mqttState=");
+    Serial.println(mqttClient.state());
+    Serial.print("[PUB] payloadBytes=");
+    Serial.println(len);
+    Serial.print("[PUB] topicBytes=");
+    Serial.println(sensorTopic().length());
+    Serial.println("[PUB] mqttBufferBytes=512");
   }
 }
 

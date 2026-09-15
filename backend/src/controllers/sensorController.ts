@@ -3,10 +3,23 @@ import { SensorReadingModel } from '../models/SensorReading';
 import { AuthenticatedRequest } from '../middleware/auth';
 import { calculateBeeStress } from '../utils/beeStress';
 
+const withNormalizedStress = <T extends { sound_level?: number; temperature?: number; humidity?: number; bee_stress_status: string }>(
+  reading: T
+): T => {
+  return {
+    ...reading,
+    bee_stress_status: calculateBeeStress(
+      typeof reading.sound_level === 'number' ? reading.sound_level : 0,
+      reading.temperature,
+      reading.humidity
+    ),
+  };
+};
+
 export const getSensorReadings = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const readings = await SensorReadingModel.findAll();
-    res.json(readings);
+    res.json(readings.map(withNormalizedStress));
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch sensor readings' });
   }
@@ -20,7 +33,7 @@ export const getSensorReadingsByHive = async (req: AuthenticatedRequest, res: Re
       parseInt(hiveId),
       parseInt((limit as string) || '100')
     );
-    res.json(readings);
+    res.json(readings.map(withNormalizedStress));
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch sensor readings' });
   }
@@ -41,7 +54,7 @@ export const getSensorReadingsByHiveAndTimeRange = async (req: AuthenticatedRequ
       new Date(endTime as string),
       parseInt((limit as string) || '1000')
     );
-    res.json(readings);
+    res.json(readings.map(withNormalizedStress));
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch sensor readings' });
   }
@@ -56,7 +69,7 @@ export const getLatestSensorReadingByHive = async (req: AuthenticatedRequest, re
       return res.status(404).json({ error: 'No sensor readings found' });
     }
 
-    res.json(reading);
+    res.json(withNormalizedStress(reading));
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch sensor reading' });
   }
@@ -70,7 +83,7 @@ export const createSensorReading = async (req: AuthenticatedRequest, res: Respon
       return res.status(400).json({ error: 'hiveId, temperature, humidity, and soundLevel are required' });
     }
 
-    const beeStress = calculateBeeStress(soundLevel);
+    const beeStress = calculateBeeStress(soundLevel, temperature, humidity);
 
     const reading = await SensorReadingModel.create(
       hiveId,

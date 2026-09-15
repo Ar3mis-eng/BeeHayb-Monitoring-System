@@ -2,11 +2,7 @@ import { io, Socket } from 'socket.io-client';
 import Config from 'react-native-config';
 import { SensorReading } from '../types';
 
-const WEBSOCKET_URL = (Config.SOCKET_BASE_URL || '').trim().replace(/\/$/, '');
-
-if (!WEBSOCKET_URL) {
-  throw new Error('SOCKET_BASE_URL is not configured');
-}
+const WEBSOCKET_URL = (Config.SOCKET_BASE_URL || '').trim().replace(/\/$/, '') || 'http://localhost:5001';
 
 let socket: Socket | null = null;
 

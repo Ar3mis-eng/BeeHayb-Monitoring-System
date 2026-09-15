@@ -68,7 +68,11 @@ export const initMqtt = async (onMessageCallback?: (reading: SensorReading) => v
       }
 
       // Calculate bee stress
-      const beeStress = calculateBeeStress(payload.sound_level);
+      const beeStress = calculateBeeStress(
+        payload.sound_level,
+        payload.temperature,
+        payload.humidity
+      );
 
       // Store sensor reading
       const reading = await SensorReadingModel.create(

@@ -18,44 +18,63 @@ const maxStress = (...levels: BeeStressLevel[]): BeeStressLevel => {
   return highest;
 };
 
-const calculateSoundStress = (soundLevel: number): BeeStressLevel => {
-  if (soundLevel >= 76) {
+const toFiniteNumber = (value: number | string | undefined): number | undefined => {
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const calculateSoundStress = (soundLevel: number | string | undefined): BeeStressLevel => {
+  const normalizedSoundLevel = toFiniteNumber(soundLevel);
+
+  if (normalizedSoundLevel === undefined) {
+    return 'Healthy';
+  }
+
+  if (normalizedSoundLevel >= 76) {
     return 'Critical';
   }
 
-  if (soundLevel >= 61) {
+  if (normalizedSoundLevel >= 61) {
     return 'Warning';
   }
 
   return 'Healthy';
 };
 
-const calculateTemperatureStress = (temperature?: number): BeeStressLevel => {
-  if (temperature === undefined || Number.isNaN(temperature)) {
+const calculateTemperatureStress = (temperature?: number | string): BeeStressLevel => {
+  const normalizedTemperature = toFiniteNumber(temperature);
+
+  if (normalizedTemperature === undefined) {
     return 'Healthy';
   }
 
-  if (temperature < 10 || temperature > 40) {
+  if (normalizedTemperature < 10 || normalizedTemperature > 40) {
     return 'Critical';
   }
 
-  if (temperature < 18 || temperature > 36) {
+  if (normalizedTemperature < 18 || normalizedTemperature > 36) {
     return 'Warning';
   }
 
   return 'Healthy';
 };
 
-const calculateHumidityStress = (humidity?: number): BeeStressLevel => {
-  if (humidity === undefined || Number.isNaN(humidity)) {
+const calculateHumidityStress = (humidity?: number | string): BeeStressLevel => {
+  const normalizedHumidity = toFiniteNumber(humidity);
+
+  if (normalizedHumidity === undefined) {
     return 'Healthy';
   }
 
-  if (humidity < 30 || humidity > 85) {
+  if (normalizedHumidity < 30 || normalizedHumidity > 85) {
     return 'Critical';
   }
 
-  if (humidity < 40 || humidity > 75) {
+  if (normalizedHumidity < 40 || normalizedHumidity > 75) {
     return 'Warning';
   }
 
@@ -63,9 +82,9 @@ const calculateHumidityStress = (humidity?: number): BeeStressLevel => {
 };
 
 export const calculateBeeStress = (
-  soundLevel: number,
-  temperature?: number,
-  humidity?: number
+  soundLevel: number | string | undefined,
+  temperature?: number | string,
+  humidity?: number | string
 ): BeeStressLevel => {
   return maxStress(
     calculateSoundStress(soundLevel),

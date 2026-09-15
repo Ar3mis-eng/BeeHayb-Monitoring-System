@@ -9,7 +9,7 @@ const withNormalizedStress = <T extends { sound_level?: number; temperature?: nu
   return {
     ...reading,
     bee_stress_status: calculateBeeStress(
-      typeof reading.sound_level === 'number' ? reading.sound_level : 0,
+      reading.sound_level,
       reading.temperature,
       reading.humidity
     ),

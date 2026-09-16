@@ -62,7 +62,7 @@ const calculateTemperatureStress = (temperature?: number | string): BeeStressLev
     return 'Critical';
   }
 
-  if (normalizedTemperature < 18 || normalizedTemperature > 36) {
+  if (normalizedTemperature < 30 || normalizedTemperature > 36.5) {
     return 'Warning';
   }
 
@@ -76,11 +76,11 @@ const calculateHumidityStress = (humidity?: number | string): BeeStressLevel => 
     return 'Healthy';
   }
 
-  if (normalizedHumidity < 30 || normalizedHumidity > 85) {
+  if (normalizedHumidity < 10 || normalizedHumidity > 90) {
     return 'Critical';
   }
 
-  if (normalizedHumidity < 40 || normalizedHumidity > 75) {
+  if (normalizedHumidity < 40 || normalizedHumidity > 70) {
     return 'Warning';
   }
 
@@ -99,25 +99,67 @@ export const calculateStressReasons = (
 
   if (normalizedSoundLevel !== undefined) {
     if (normalizedSoundLevel >= 76) {
-      reasons.push({ metric: 'Sound', severity: 'Critical', message: `Sound is very high (${normalizedSoundLevel.toFixed(1)} dB)` });
+      reasons.push({
+        metric: 'Sound',
+        severity: 'Critical',
+        message: `Sound is very high (${normalizedSoundLevel.toFixed(1)} dB), which may indicate active swarming, agitation, or a nearby disturbance.`,
+      });
     } else if (normalizedSoundLevel >= 61) {
-      reasons.push({ metric: 'Sound', severity: 'Warning', message: `Sound is elevated (${normalizedSoundLevel.toFixed(1)} dB)` });
+      reasons.push({
+        metric: 'Sound',
+        severity: 'Warning',
+        message: `Sound is elevated (${normalizedSoundLevel.toFixed(1)} dB), which may indicate increased fanning or mild colony stress.`,
+      });
+    } else {
+      reasons.push({
+        metric: 'Sound',
+        severity: 'Healthy',
+        message: `Sound is within the normal activity range (${normalizedSoundLevel.toFixed(1)} dB), consistent with a steady colony.`,
+      });
     }
   }
 
   if (normalizedTemperature !== undefined) {
     if (normalizedTemperature < 10 || normalizedTemperature > 40) {
-      reasons.push({ metric: 'Temperature', severity: 'Critical', message: `Temperature is dangerous (${normalizedTemperature.toFixed(1)} °C)` });
-    } else if (normalizedTemperature < 18 || normalizedTemperature > 36) {
-      reasons.push({ metric: 'Temperature', severity: 'Warning', message: `Temperature is outside the preferred range (${normalizedTemperature.toFixed(1)} °C)` });
+      reasons.push({
+        metric: 'Temperature',
+        severity: 'Critical',
+        message: `Temperature is dangerous (${normalizedTemperature.toFixed(1)} °C), which can cause cluster failure, brood death, or comb damage.`,
+      });
+    } else if (normalizedTemperature < 30 || normalizedTemperature > 36.5) {
+      reasons.push({
+        metric: 'Temperature',
+        severity: 'Warning',
+        message: `Temperature is outside the moderate range (${normalizedTemperature.toFixed(1)} °C), increasing cold stress or heat-management demands.`,
+      });
+    } else {
+      reasons.push({
+        metric: 'Temperature',
+        severity: 'Healthy',
+        message: `Temperature is in the healthy brood-management range (${normalizedTemperature.toFixed(1)} °C).`,
+      });
     }
   }
 
   if (normalizedHumidity !== undefined) {
-    if (normalizedHumidity < 30 || normalizedHumidity > 85) {
-      reasons.push({ metric: 'Humidity', severity: 'Critical', message: `Humidity is dangerous (${normalizedHumidity.toFixed(1)}%)` });
-    } else if (normalizedHumidity < 40 || normalizedHumidity > 75) {
-      reasons.push({ metric: 'Humidity', severity: 'Warning', message: `Humidity is outside the preferred range (${normalizedHumidity.toFixed(1)}%)` });
+    if (normalizedHumidity < 10 || normalizedHumidity > 90) {
+      reasons.push({
+        metric: 'Humidity',
+        severity: 'Critical',
+        message: `Humidity is dangerous (${normalizedHumidity.toFixed(1)}%), increasing extreme dryness or fungal-growth risk.`,
+      });
+    } else if (normalizedHumidity < 40 || normalizedHumidity > 70) {
+      reasons.push({
+        metric: 'Humidity',
+        severity: 'Warning',
+        message: `Humidity is outside the moderate range (${normalizedHumidity.toFixed(1)}%), which can contribute to larval desiccation or impaired evaporative cooling.`,
+      });
+    } else {
+      reasons.push({
+        metric: 'Humidity',
+        severity: 'Healthy',
+        message: `Humidity is in the healthy colony range (${normalizedHumidity.toFixed(1)}%), supporting brood and moisture balance.`,
+      });
     }
   }
 

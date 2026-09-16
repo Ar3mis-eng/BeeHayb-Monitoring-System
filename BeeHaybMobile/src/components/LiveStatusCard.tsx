@@ -34,14 +34,17 @@ const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
       </View>
       <View style={styles.reasonWrap}>
         <Text style={[styles.reasonTitle, { color: getStatusColor(stressStatus) }]}>
-          {stressStatus === 'Healthy' ? 'Conditions normal' : `${stressStatus} because`}
+          {stressStatus === 'Healthy' ? 'Healthy / ideal conditions' : `${stressStatus} conditions explained`}
         </Text>
         {stressReasons.length > 0 ? stressReasons.map((reason) => (
-          <Text key={`${reason.metric}-${reason.message}`} style={styles.reasonText}>
-            • {reason.message}
-          </Text>
+          <View key={`${reason.metric}-${reason.message}`} style={styles.reasonRow}>
+            <Text style={[styles.reasonMetric, { color: getStatusColor(reason.severity) }]}>
+              {reason.metric} · {reason.severity}
+            </Text>
+            <Text style={styles.reasonText}>{reason.message}</Text>
+          </View>
         )) : (
-          <Text style={styles.reasonText}>All monitored conditions are within configured ranges.</Text>
+          <Text style={styles.reasonText}>No sensor explanation is available yet.</Text>
         )}
       </View>
     </View>
@@ -129,11 +132,17 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   reasonText: {
-    marginTop: 4,
     fontSize: 12,
     lineHeight: 17,
     color: '#6F675A',
     fontWeight: '600',
+  },
+  reasonRow: {
+    marginTop: 8,
+  },
+  reasonMetric: {
+    fontSize: 12,
+    fontWeight: '800',
   },
 });
 

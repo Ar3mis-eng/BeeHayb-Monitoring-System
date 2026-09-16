@@ -1,7 +1,7 @@
 import { Response } from 'express';
 import { SensorReadingModel } from '../models/SensorReading';
 import { AuthenticatedRequest } from '../middleware/auth';
-import { calculateBeeStress } from '../utils/beeStress';
+import { calculateBeeStress, calculateStressReasons } from '../utils/beeStress';
 
 const withNormalizedStress = <T extends { sound_level?: number; temperature?: number; humidity?: number; bee_stress_status: string }>(
   reading: T
@@ -9,6 +9,11 @@ const withNormalizedStress = <T extends { sound_level?: number; temperature?: nu
   return {
     ...reading,
     bee_stress_status: calculateBeeStress(
+      reading.sound_level,
+      reading.temperature,
+      reading.humidity
+    ),
+    stress_reasons: calculateStressReasons(
       reading.sound_level,
       reading.temperature,
       reading.humidity

@@ -1,5 +1,11 @@
 export type BeeStressLevel = 'Healthy' | 'Warning' | 'Critical';
 
+export interface StressReason {
+  metric: 'Sound' | 'Temperature' | 'Humidity';
+  severity: BeeStressLevel;
+  message: string;
+}
+
 const STRESS_RANK: Record<BeeStressLevel, number> = {
   Healthy: 0,
   Warning: 1,
@@ -81,6 +87,43 @@ const calculateHumidityStress = (humidity?: number | string): BeeStressLevel => 
   return 'Healthy';
 };
 
+export const calculateStressReasons = (
+  soundLevel: number | string | undefined,
+  temperature?: number | string,
+  humidity?: number | string
+): StressReason[] => {
+  const reasons: StressReason[] = [];
+  const normalizedSoundLevel = toFiniteNumber(soundLevel);
+  const normalizedTemperature = toFiniteNumber(temperature);
+  const normalizedHumidity = toFiniteNumber(humidity);
+
+  if (normalizedSoundLevel !== undefined) {
+    if (normalizedSoundLevel >= 76) {
+      reasons.push({ metric: 'Sound', severity: 'Critical', message: `Sound is very high (${normalizedSoundLevel.toFixed(1)} dB)` });
+    } else if (normalizedSoundLevel >= 61) {
+      reasons.push({ metric: 'Sound', severity: 'Warning', message: `Sound is elevated (${normalizedSoundLevel.toFixed(1)} dB)` });
+    }
+  }
+
+  if (normalizedTemperature !== undefined) {
+    if (normalizedTemperature < 10 || normalizedTemperature > 40) {
+      reasons.push({ metric: 'Temperature', severity: 'Critical', message: `Temperature is dangerous (${normalizedTemperature.toFixed(1)} °C)` });
+    } else if (normalizedTemperature < 18 || normalizedTemperature > 36) {
+      reasons.push({ metric: 'Temperature', severity: 'Warning', message: `Temperature is outside the preferred range (${normalizedTemperature.toFixed(1)} °C)` });
+    }
+  }
+
+  if (normalizedHumidity !== undefined) {
+    if (normalizedHumidity < 30 || normalizedHumidity > 85) {
+      reasons.push({ metric: 'Humidity', severity: 'Critical', message: `Humidity is dangerous (${normalizedHumidity.toFixed(1)}%)` });
+    } else if (normalizedHumidity < 40 || normalizedHumidity > 75) {
+      reasons.push({ metric: 'Humidity', severity: 'Warning', message: `Humidity is outside the preferred range (${normalizedHumidity.toFixed(1)}%)` });
+    }
+  }
+
+  return reasons;
+};
+
 export const calculateBeeStress = (
   soundLevel: number | string | undefined,
   temperature?: number | string,
@@ -96,6 +139,7 @@ export const calculateBeeStress = (
 export const calculateStressResponse = (soundLevel: number, temperature?: number, humidity?: number) => {
   return {
     beeStress: calculateBeeStress(soundLevel, temperature, humidity),
+    stressReasons: calculateStressReasons(soundLevel, temperature, humidity),
     soundLevel,
     temperature,
     humidity,

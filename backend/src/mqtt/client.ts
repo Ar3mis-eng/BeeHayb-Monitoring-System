@@ -1,7 +1,7 @@
 import mqtt, { MqttClient } from 'mqtt';
 import { SensorReadingModel } from '../models/SensorReading';
 import { DeviceModel } from '../models/Device';
-import { calculateBeeStress } from '../utils/beeStress';
+import { calculateBeeStress, calculateStressReasons } from '../utils/beeStress';
 import { SensorReading } from '../models/SensorReading';
 
 let mqttClient: MqttClient | null = null;
@@ -84,11 +84,20 @@ export const initMqtt = async (onMessageCallback?: (reading: SensorReading) => v
         device?.id
       );
 
-      console.log('Sensor reading stored:', reading);
+      const readingWithReasons = {
+        ...reading,
+        stress_reasons: calculateStressReasons(
+          payload.sound_level,
+          payload.temperature,
+          payload.humidity
+        ),
+      };
+
+      console.log('Sensor reading stored:', readingWithReasons);
 
       // Call callback if provided
       if (onMessageCallback) {
-        onMessageCallback(reading);
+        onMessageCallback(readingWithReasons);
       }
     } catch (error) {
       console.error('Error processing MQTT message:', error);

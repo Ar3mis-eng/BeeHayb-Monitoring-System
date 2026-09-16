@@ -260,6 +260,8 @@ const LiveMonitorScreen: React.FC = () => {
           backendStatus={backendConnectionStatus}
           deviceStatus={deviceTelemetryStatus}
           lastUpdateLabel={lastUpdateLabel}
+          stressStatus={backendStressStatus}
+          stressReasons={latestReading?.stress_reasons}
         />
 
         <Text style={styles.sectionTitle}>Hive Metrics</Text>

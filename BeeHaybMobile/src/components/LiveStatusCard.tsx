@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { formatDate } from '../utils/helpers';
+import { BeeStressLevel, StressReason } from '../types';
 
 interface LiveStatusCardProps {
   lastSyncTime: Date;
@@ -8,6 +9,8 @@ interface LiveStatusCardProps {
   backendStatus?: 'Connected' | 'Disconnected';
   deviceStatus?: 'Fresh' | 'Stale' | 'Offline';
   lastUpdateLabel?: string;
+  stressStatus?: BeeStressLevel;
+  stressReasons?: StressReason[];
 }
 
 const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
@@ -16,6 +19,8 @@ const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
   backendStatus = 'Connected',
   deviceStatus = 'Fresh',
   lastUpdateLabel,
+  stressStatus = 'Healthy',
+  stressReasons = [],
 }) => {
   return (
     <View style={styles.card}>
@@ -27,8 +32,32 @@ const LiveStatusCard: React.FC<LiveStatusCardProps> = ({
       <View style={styles.rightWrap}>
         <Text style={styles.rightText}>{getSourceLabel(sensorSource)}</Text>
       </View>
+      <View style={styles.reasonWrap}>
+        <Text style={[styles.reasonTitle, { color: getStatusColor(stressStatus) }]}>
+          {stressStatus === 'Healthy' ? 'Conditions normal' : `${stressStatus} because`}
+        </Text>
+        {stressReasons.length > 0 ? stressReasons.map((reason) => (
+          <Text key={`${reason.metric}-${reason.message}`} style={styles.reasonText}>
+            • {reason.message}
+          </Text>
+        )) : (
+          <Text style={styles.reasonText}>All monitored conditions are within configured ranges.</Text>
+        )}
+      </View>
     </View>
   );
+};
+
+const getStatusColor = (status: BeeStressLevel): string => {
+  if (status === 'Critical') {
+    return '#B8443D';
+  }
+
+  if (status === 'Warning') {
+    return '#A66A20';
+  }
+
+  return '#4D7E52';
 };
 
 const getSourceLabel = (source: string): string => {
@@ -59,6 +88,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    flexWrap: 'wrap',
     columnGap: 12,
   },
   leftWrap: {
@@ -86,6 +116,24 @@ const styles = StyleSheet.create({
     color: '#6F675A',
     fontWeight: '600',
     textAlign: 'right',
+  },
+  reasonWrap: {
+    width: '100%',
+    marginTop: 14,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E4DDCE',
+  },
+  reasonTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  reasonText: {
+    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 17,
+    color: '#6F675A',
+    fontWeight: '600',
   },
 });
 

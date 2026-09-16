@@ -1,5 +1,11 @@
 export type BeeStressLevel = 'Healthy' | 'Warning' | 'Critical';
 
+export interface StressReason {
+  metric: 'Sound' | 'Temperature' | 'Humidity';
+  severity: BeeStressLevel;
+  message: string;
+}
+
 export interface Hive {
   id: number;
   hive_name: string;
@@ -28,6 +34,7 @@ export interface SensorReading {
   humidity?: number;
   sound_level?: number;
   bee_stress_status: BeeStressLevel;
+  stress_reasons?: StressReason[];
   recorded_at: Date;
 }
 
